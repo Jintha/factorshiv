@@ -1,0 +1,203 @@
+---
+title: Identifying factors to improve patient outcomes at a given Anti-Retroviral
+  Therapy Clinic Treating HIV positive patients at a district hospital in Malawi
+author: "ojgadabu"
+date: "3/20/2018"
+output:
+  html_document: default
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library("tidyverse")
+library(biotools)
+library(psych)
+library(QuantPsyc)
+library(pastecs)
+library(corrgram)
+library(gplots)
+library(cluster)
+library(tidyverse)
+library(pwr)
+library(xtable)
+library(stargazer)
+library(knitr)
+library(sjPlot)
+library(plyr)
+library(sjmisc)
+library(Hmisc)
+library(MBESS)
+library(apaTables)
+library(rockchalk)
+library(gmodels)
+library(car)
+library(GPArotation)
+library(tableone)
+
+
+
+
+```
+
+##Introduction
+Malawi has successfully scaled up a national program to enroll and treat HIV infected patients in anti-retroviral clinics in the country. The national program has registered success in its monitoring plan by among other things adopting a national electronic medical record (EMR) system to manage records of patients enrolled in the ART clinics. The goal of the national program has been to reduce incidence rates whilst maintaining optimal outcomes of patients enrolled in the ART clinics. Nationally, there have been studies that have assessed patient outcomes and various factors such as co-morbid connditions such as HIV and Tuberculosis. To our knowledge, there has however been limited investigations that have focussed on a health facility setting especially after adoption of the EMR at different ART clinics. Therefore understanding the factors related to patient outcomes at a health faciity level becomes an interesting question, given that the data are now readily collected and faster turn around of factors may result in interventions at local level that may lead to improvements in health delivery.
+
+##Research Question
+
+What factors influence patient outcomes at a local district health facility using an EMR in Malawi?
+
+##Objectives
+
+*To describe the relationship of patient outcomes and disease stage including the effect size of patient.
+
+*To identify a model for predicting whether a patient will live or die based on physical characteristics of a patient, disease stage, demographic values such as age and sex, current treatment of a patient.
+
+
+##Methods
+*Data collection*
+Secondary data analysis will be conducted using data collected from an EMR from the hospital. These are patient level data that have been reported on to the public and are dei-dentified.
+
+*Sample Size*
+The dataset consists of 3,365 patient records. The researcher intends to use all the patient records since the data are already avaialable.
+
+*Data analysis*
+*Chi-Square* 
+This will analyze the relationship between the disease stage (WHO Stage defining conditions) and the outcomes dying or being alive. There will be 4 groups analyzed here, which are: WHO Stage 3; WHO Stage 4 and CD-4 Count < 250.
+
+*Logistic regression*
+Logistic regression will assess the outcomes of alive and dying with the goal of identifying the best model that may predict these outcomes. The independent variables that will be used to build this model are: current weight of a patient, disease stage, demographic values such as age and sex, current treatment regimen.
+
+*Overview of dataset for the project below*
+
+```{r echo = TRUE}
+
+ psych_project_data = read.csv("Dedza_data_elasma.csv")
+ 
+ outcome_summaries_t = ddply(psych_project_data, c("current.Outcome","Gender","Start.Reason"), summarise,
+               Total_Count    = length(c(current.Outcome)))
+
+ psych_project_data_od = psych_project_data %>% filter(psych_project_data$current.Outcome == "On ART" | psych_project_data$current.Outcome == "Died") %>%  filter(!Start.Reason %in% c("Child HIV positive","Presumed HIV Disease","WHO stage 4 peds", "Child HIV positive","CD4 Count < 750")) %>% droplevels()
+
+ listVar = c("Gender","Current.Weight","Current.Age","Start.Reason","current.Outcome")
+ 
+ catVar = c("Gender","Start.Reason","current.Outcome")
+ 
+ table1 = CreateTableOne(vars = listVar, data = psych_project_data, factorVars = catVar)
+ table1 
+ 
+ table2 = CreateTableOne(listVar, psych_project_data, catVar, strata = c("Gender"))
+ table2
+
+ # stargazer(table2 type="text")
+
+ 
+#outcome_summaries = ddply(psych_project_data_od, #c("current.Outcome","Gender","Start.Reason"), summarise,
+#               Total_Count    = length(c(current.Outcome)))
+ 
+
+#outcome_summaries_weight = ddply(psych_project_data_od, c("current.Outcome"), 
+#                                 summarise,
+ #              mean_weight    = mean(c(Current.Weight)),
+  #             standard_deviation = sd(c(Current.Weight)))
+
+
+
+
+
+
+#ggplot(outcome_summaries, aes(x = Gender,y = Total_Count)) + geom_jitter(aes(color= 
+#Start.Reason, shape = current.Outcome))
+
+
+
+#kable(outcome_summaries)
+
+
+
+
+
+
+#Chi-Square results. Indicate significant results. 
+
+ CrossTable(psych_project_data_od$Start.Reason, psych_project_data_od$current.Outcome, chisq = TRUE, fisher = TRUE, 
+expected = TRUE, sresid = TRUE, format = "SPSS")
+
+
+
+
+
+#Logistic regression
+
+levels(psych_project_data_od$current.Outcome)
+#want to start with all patients being alive and on ART
+psych_project_data_od$current.Outcome = relevel(psych_project_data_od$current.Outcome, "On ART")  
+
+jpeg("bmc_template/rplot.jpg", width = 350, height = 300)
+plot(psych_project_data_od$Current.Weight, psych_project_data_od$current.Outcome, xlab = "Current Weight",ylab="Patient Outcomes", frame = FALSE)  
+dev.off()
+
+
+plot(psych_project_data_od$Current.Age, psych_project_data_od$current.Outcome)
+
+# build model start with the start reason
+# 
+
+model1 <- glm(current.Outcome ~ Start.Reason, data = psych_project_data_od, family = binomial())
+summary(model1)
+
+
+model2 <- glm(current.Outcome ~ Start.Reason + Current.Weight, data = psych_project_data_od, family = binomial())
+summary(model2)
+
+model3 <- glm(current.Outcome ~ Start.Reason + Gender + Current.Weight, data = psych_project_data_od, family = binomial())
+summary(model3)
+
+
+
+
+
+model4 <- glm(current.Outcome ~ Start.Reason + Gender + Current.Weight + Current.Age, data = psych_project_data_od, family = binomial())
+summary(model4)
+stargazer(model4, type = "latex" , ci = TRUE)
+
+
+model4_diff <- model3$deviance - model4$deviance
+model4_diff
+#Find differences in degrees of freedom
+model4_dfdiff <- model3$df.residual - model4$df.residual
+model4_dfdiff
+#Find p-value for difference on chi-square distribution
+model4_sig <- 1 - pchisq(model4_diff, model4_dfdiff)
+model4_sig
+
+#Calculate odds ratio for WHO Stage, Current Weight, Gender and Age
+
+exp(model4$coefficients)
+
+exp(confint(model4))
+
+#odds ratio
+#Examine multicollinearity of predictors with VIF and tolerance in car package
+library(car)
+vif(model4)
+1/vif(model2)
+
+
+#Examine linearity of continuous predictor with logit of outcome
+#Add interaction term of Duration with log of itself to model
+#eel_data$logInteract_Duration <- log(eel_data$Duration)*eel_data$Duration
+
+#model2_test <- glm(Cured ~ Intervention + Duration + logInteract_Duration, 
+#                   data = eel_data, family = binomial())
+#summary(model2_test)
+
+
+
+
+
+
+```
+
+

@@ -73,7 +73,7 @@ Logistic regression will assess the outcomes of alive and dying with the goal of
 
 ```{r echo = TRUE}
 
- psych_project_data = read.csv("district_hospital.csv")
+ psych_project_data = read.csv("district_hospital.csv", stringsAsFactors = TRUE)
  
  outcome_summaries_t = ddply(psych_project_data, c("current.Outcome","Gender","Start.Reason"), summarise,
                Total_Count    = length(c(current.Outcome)))
